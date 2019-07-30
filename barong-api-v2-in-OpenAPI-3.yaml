@@ -1,0 +1,1843 @@
+info:
+  title: Barong
+  description: RESTful API for barong OAuth server
+  version: 2.0.30-alpha
+openapi: 3.0.0
+components:
+  securitySchemes:
+    cookieAuth:         # arbitrary name for the security scheme; will be used in the "security" key later
+      type: apiKey
+      in: cookie
+      name: _barong_session  # cookie name
+  schemas:
+    Label:
+      properties:
+        key:
+          type: string
+          description: 'Label key. [a-z0-9_-]+ should be used. Min - 3, max - 255 characters.'
+        value:
+          type: string
+          description: 'Label value. [A-Za-z0-9_-] should be used. Min - 3, max - 255 characters.'
+        scope:
+          type: string
+          description: 'Label scope: ''public'' or ''private'''
+        created_at:
+          type: string
+        updated_at:
+          type: string
+    APIKey:
+      properties:
+        kid:
+          type: string
+          description: jwt public key
+        algorithm:
+          type: string
+          description: cryptographic hash function type
+        scope:
+          type: string
+          description: serialized array of scopes
+        state:
+          type: string
+          description: active/non-active state of key
+        secret:
+          type: string
+        created_at:
+          type: string
+        updated_at:
+          type: string
+    Profile:
+      properties:
+        first_name:
+          type: string
+        last_name:
+          type: string
+        dob:
+          type: string
+          format: date
+          description: Birthday date
+        address:
+          type: string
+        postcode:
+          type: string
+        city:
+          type: string
+        country:
+          type: string
+        metadata:
+          type: object
+          description: Profile additional fields
+    User:
+      properties:
+        email:
+          type: string
+        uid:
+          type: string
+        role:
+          type: string
+        level:
+          type: integer
+          format: int32
+        otp:
+          type: boolean
+          description: is 2FA enabled for account
+        state:
+          type: string
+    UserWithProfile:
+      properties:
+        email:
+          type: string
+        uid:
+          type: string
+        role:
+          type: string
+        level:
+          type: integer
+          format: int32
+        otp:
+          type: boolean
+          description: is 2FA enabled for account
+        state:
+          type: string
+        profile:
+          $ref: '#/components/schemas/Profile'
+        created_at:
+          type: string
+        updated_at:
+          type: string
+    UserWithFullInfo:
+      properties:
+        email:
+          type: string
+        uid:
+          type: string
+        role:
+          type: string
+        level:
+          type: integer
+          format: int32
+        otp:
+          type: boolean
+        state:
+          type: string
+        profile:
+          $ref: '#/components/schemas/Profile'
+        labels:
+          $ref: '#/components/schemas/Label'
+        phones:
+          $ref: '#/components/schemas/Phone'
+        documents:
+          $ref: '#/components/schemas/Document'
+        created_at:
+          type: string
+        updated_at:
+          type: string
+    Phone:
+      properties:
+        country:
+          type: string
+        number:
+          type: string
+        validated_at:
+          type: string
+          format: g
+    Document:
+      properties:
+        upload:
+          type: string
+          description: file url
+        doc_type:
+          type: string
+          description: 'document type: passport, driver license'
+        doc_number:
+          type: string
+          description: 'document number: AB123123 type'
+        doc_expire:
+          type: string
+          description: expire date of uploaded documents
+        metadata:
+          type: string
+          description: any additional stored data
+        created_at:
+          type: string
+        updated_at:
+          type: string
+    Activity:
+      properties:
+        user_ip:
+          type: string
+        user_agent:
+          type: string
+        topic:
+          type: string
+        action:
+          type: string
+        result:
+          type: string
+        data:
+          type: string
+        created_at:
+          type: string
+
+        
+        
+servers:
+  - url: https://www.staging.fengkai.com/api/v2
+    description: Staging server (uses fake data)
+tags:
+  - name: admin
+    description: Operations about admins
+  - name: identity
+    description: Operations about identities
+  - name: resource
+    description: Operations about resources
+paths:
+  /admin/metrics:
+    get:
+      description: Returns main statistic in the given time period
+      parameters:
+        - in: query
+          name: created_from
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: created_to
+          required: false
+          schema:
+            type: string
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Returns main statistic in the given time period
+          content:
+           application/json:
+            schema:          # Must-have
+              type: object  
+           
+        '401':
+          description: Invalid bearer token
+      tags:
+        - admin
+      operationId: getAdminMetrics
+  /admin/activities/admin:
+    get:
+      description: Returns array of activities as paginated collection
+      parameters:
+        - in: query
+          name: topic
+          schema: 
+           $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: action
+          schema: 
+           $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: uid
+          schema: 
+           $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: email
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: target_uid
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: range
+          schema:
+          $ref: '#/components/schemas/Phone'
+          default: created
+          required: false
+        - in: query
+          name: from
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: to
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: page
+          description: Page number (defaults to 1).
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: limit
+          description: 'Number of users per page (defaults to 100, maximum is 100).'
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Returns array of activities as paginated collection
+        '401':
+          description: Invalid bearer token
+      tags:
+        - admin
+      operationId: getAdminActivitiesAdmin
+  /admin/activities:
+    get:
+      description: Returns array of activities as paginated collection
+      parameters:
+        - in: query
+          name: topic
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: action
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: uid
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: email
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: from
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: to
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: page
+          description: Page number (defaults to 1).
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: limit
+          description: 'Number of users per page (defaults to 100, maximum is 100).'
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Returns array of activities as paginated collection
+        '401':
+          description: Invalid bearer token
+      tags:
+        - admin
+      operationId: getAdminActivities
+  /admin/permissions:
+    put:
+      description: Update Permission
+      parameters:
+        - in: formData
+          name: id
+          description: Permission id
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: role
+          description: permission field - role
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: formData
+          name: verb
+          description: permission field - request verb
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: formData
+          name: path
+          description: permission field - request path
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: formData
+          name: action
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Update Permission
+        '401':
+          description: Invalid bearer token
+      tags:
+        - admin
+      operationId: putAdminPermissions
+    delete:
+      description: Deletes permission
+      parameters:
+        - in: query
+          name: id
+          description: permission id
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+      security:
+        - BearerToken: []
+      responses:
+        '204':
+          description: Deletes permission
+        '401':
+          description: Invalid bearer token
+      tags:
+        - admin
+      operationId: deleteAdminPermissions
+    post:
+      description: Create permission
+      parameters:
+        - in: formData
+          name: role
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: verb
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: path
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: action
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+      security:
+        - BearerToken: []
+      responses:
+        '201':
+          description: Create permission
+        '401':
+          description: Invalid bearer token
+      tags:
+        - admin
+      operationId: postAdminPermissions
+    get:
+      description: Returns array of permissions as paginated collection
+      parameters:
+        - in: query
+          name: page
+          description: Page number (defaults to 1).
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: limit
+          description: 'Number of users per page (defaults to 100, maximum is 100).'
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Returns array of permissions as paginated collection
+        '401':
+          description: Invalid bearer token
+      tags:
+        - admin
+      operationId: getAdminPermissions
+  '/admin/users/uid':
+    get:
+      description: Returns user info
+      parameters:
+        - in: path
+          name: uid
+          description: user uniq id
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Returns user info
+        '401':
+          description: Invalid bearer token
+      tags:
+        - admin
+      operationId: getAdminUsersUid
+  /admin/users/labels:
+    delete:
+      description: Deletes label for user
+      parameters:
+        - in: query
+          name: uid
+          description: user uniq id
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: query
+          name: key
+          description: 'label key. [a-z0-9_-]+ should be used. Min - 3, max - 255 characters.'
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: query
+          name: scope
+          description: 'label key. [a-z0-9_-]+ should be used. Min - 3, max - 255 characters.'
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+      security:
+        - BearerToken: []
+      responses:
+        '204':
+          description: Deletes label for user
+        '401':
+          description: Invalid bearer token
+      tags:
+        - admin
+      operationId: deleteAdminUsersLabels
+    put:
+      description: Update user label scope
+      parameters:
+        - in: formData
+          name: uid
+          description: user uniq id
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: key
+          description: Label key.
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: scope
+          description: 'label key. [a-z0-9_-]+ should be used. Min - 3, max - 255 characters.'
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: value
+          description: Label value.
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Update user label scope
+        '400':
+          description: Required params are empty
+        '401':
+          description: Invalid bearer token
+        '404':
+          description: Record is not found
+        '422':
+          description: Validation errors
+      tags:
+        - admin
+      operationId: putAdminUsersLabels
+    post:
+      description: Adds label for user
+      parameters:
+        - in: formData
+          name: uid
+          description: user uniq id
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: key
+          description: 'label key. [a-z0-9_-]+ should be used. Min - 3, max - 255 characters.'
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: value
+          description: 'label value. [A-Za-z0-9_-] should be used. Min - 3, max - 255 characters.'
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: scope
+          description: 'Label scope: ''public'' or ''private''. Default is public'
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+      security:
+        - BearerToken: []
+      responses:
+        '201':
+          description: Adds label for user
+        '401':
+          description: Invalid bearer token
+      tags:
+        - admin
+      operationId: postAdminUsersLabels
+    get:
+      description: Returns array of users as paginated collection
+      parameters:
+        - in: query
+          name: key
+          description: Label key
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: query
+          name: value
+          description: Label value
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: query
+          name: page
+          description: Page number (defaults to 1).
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: limit
+          description: 'Number of users per page (defaults to 100, maximum is 1000).'
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Returns array of users as paginated collection
+        '401':
+          description: Invalid bearer token
+      tags:
+        - admin
+      operationId: getAdminUsersLabels
+  /admin/users/labels/update:
+    post:
+      description: Update user label scope
+      parameters:
+        - in: formData
+          name: uid
+          description: user uniq id
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: key
+          description: Label key.
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: scope
+          description: 'label key. [a-z0-9_-]+ should be used. Min - 3, max - 255 characters.'
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: value
+          description: Label value.
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+      security:
+        - BearerToken: []
+      responses:
+        '201':
+          description: Update user label scope
+        '400':
+          description: Required params are empty
+        '401':
+          description: Invalid bearer token
+        '404':
+          description: Record is not found
+        '422':
+          description: Validation errors
+      tags:
+        - admin
+      operationId: postAdminUsersLabelsUpdate
+  /admin/users/labels/list:
+    get:
+      description: Returns existing labels keys and values
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Returns existing labels keys and values
+        '401':
+          description: Invalid bearer token
+      tags:
+        - admin
+      operationId: getAdminUsersLabelsList
+  /admin/users/documents/pending:
+    get:
+      description: Returns array of users with pending documents as paginated collection
+      parameters:
+        - in: query
+          name: extended
+          description: When true endpoint returns full information about users
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: uid
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: email
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: role
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: first_name
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: last_name
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: country
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: level
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: state
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: range
+          schema:
+          $ref: '#/components/schemas/Phone'
+          default: created
+          required: false
+        - in: query
+          name: from
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: to
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: page
+          description: Page number (defaults to 1).
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: limit
+          description: 'Number of users per page (defaults to 100, maximum is 1000).'
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Returns array of users with pending documents as paginated collection
+        '401':
+          description: Invalid bearer token
+      tags:
+        - admin
+      operationId: getAdminUsersDocumentsPending
+  /admin/users:
+    put:
+      description: Update user attributes
+      parameters:
+        - in: formData
+          name: uid
+          description: user uniq id
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: state
+          description: user state
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: formData
+          name: otp
+          description: user 2fa status
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Update user attributes
+        '401':
+          description: Invalid bearer token
+      tags:
+        - admin
+      operationId: putAdminUsers
+    get:
+      description: Returns array of users as paginated collection
+      parameters:
+        - in: query
+          name: extended
+          description: When true endpoint returns full information about users
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: uid
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: email
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: role
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: first_name
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: last_name
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: country
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: level
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: state
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: range
+          schema:
+          $ref: '#/components/schemas/Phone'
+          default: created
+          required: false
+        - in: query
+          name: from
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: to
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: page
+          description: Page number (defaults to 1).
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: limit
+          description: 'Number of users per page (defaults to 100, maximum is 100).'
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Returns array of users as paginated collection
+        '401':
+          description: Invalid bearer token
+      tags:
+        - admin
+      operationId: getAdminUsers
+  /admin/users/role:
+    post:
+      description: Update user role
+      parameters:
+        - in: formData
+          name: uid
+          description: user uniq id
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: role
+          description: user role
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+      security:
+        - BearerToken: []
+      responses:
+        '201':
+          description: Update user role
+        '401':
+          description: Invalid bearer token
+      tags:
+        - admin
+      operationId: postAdminUsersRole
+  /admin/users/update:
+    post:
+      description: Update user attributes
+      parameters:
+        - in: formData
+          name: uid
+          description: user uniq id
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: state
+          description: user state
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: formData
+          name: otp
+          description: user 2fa status
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+      security:
+        - BearerToken: []
+      responses:
+        '201':
+          description: Update user attributes
+        '401':
+          description: Invalid bearer token
+      tags:
+        - admin
+      operationId: postAdminUsersUpdate
+  /identity/users/password/confirm_code:
+    post:
+      description: Sets new account password
+      parameters:
+        - in: formData
+          name: reset_password_token
+          description: Token from email
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: password
+          description: User password
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: confirm_password
+          description: User password
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: lang
+          description: Language in iso-2 format
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+      responses:
+        '201':
+          description: Resets password
+        '400':
+          description: Required params are empty
+        '404':
+          description: Record is not found
+        '422':
+          description: Validation errors
+      tags:
+        - identity
+      operationId: postIdentityUsersPasswordConfirmCode
+  /identity/users/password/generate_code:
+    post:
+      description: Send password reset instructions
+      parameters:
+        - in: formData
+          name: email
+          description: Account email
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: lang
+          description: Language in iso-2 format
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+      responses:
+        '201':
+          description: Generated password reset code
+        '400':
+          description: Required params are missing
+        '404':
+          description: User doesn't exist
+        '422':
+          description: Validation errors
+      tags:
+        - identity
+      operationId: postIdentityUsersPasswordGenerateCode
+  /identity/users/email/confirm_code:
+    post:
+      description: Confirms an account
+      parameters:
+        - in: formData
+          name: token
+          description: Token from email
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: lang
+          description: Language in iso-2 format
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+      responses:
+        '201':
+          description: Confirms an account
+        '400':
+          description: Required params are missing
+        '422':
+          description: Validation errors
+      tags:
+        - identity
+      operationId: postIdentityUsersEmailConfirmCode
+  /identity/users/email/generate_code:
+    post:
+      description: Send confirmations instructions
+      parameters:
+        - in: formData
+          name: email
+          description: Account email
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: lang
+          description: Client env language
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+      responses:
+        '201':
+          description: Generated verification code
+        '400':
+          description: Required params are missing
+        '422':
+          description: Validation errors
+      tags:
+        - identity
+      operationId: postIdentityUsersEmailGenerateCode
+  /identity/users/register_geetest:
+    get:
+      description: Register Geetest captcha
+      responses:
+        '200':
+          description: Register Geetest captcha
+      tags:
+        - identity
+      operationId: getIdentityUsersRegisterGeetest
+  /identity/users:
+    post:
+      description: Creates new user
+      parameters:
+        - in: formData
+          name: email
+          description: User Email
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: password
+          description: User Password
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: refid
+          description: Referral uid
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: formData
+          name: lang
+          description: Client env language
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: formData
+          name: captcha_response
+          description: Response from captcha widget
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+      responses:
+        '201':
+          description: Creates new user
+        '400':
+          description: Required params are missing
+        '422':
+          description: Validation errors
+      tags:
+        - identity
+      operationId: postIdentityUsers
+  /identity/sessions:
+    delete:
+      description: Destroy current session
+      responses:
+        '204':
+          description: Destroy current session
+        '400':
+          description: Required params are empty
+        '404':
+          description: Record is not found
+      tags:
+        - identity
+      operationId: deleteIdentitySessions
+    post:
+      description: Start a new session
+      parameters:
+        - in: formData
+          name: email
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: password
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: captcha_response
+          description: Response from captcha widget
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: formData
+          name: otp_code
+          description: Code from Google Authenticator
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+      responses:
+        '201':
+          description: Start a new session
+        '400':
+          description: Required params are empty
+        '404':
+          description: Record is not found
+      tags:
+        - identity
+      operationId: postIdentitySessions
+  /identity/version:
+    get:
+      description: Get barong version
+      responses:
+        '200':
+          description: Get barong version
+      tags:
+        - identity
+      operationId: getIdentityVersion
+  /identity/time:
+    get:
+      description: Get server current unix timestamp.
+      responses:
+        '200':
+          description: Get server current unix timestamp.
+      tags:
+        - identity
+      operationId: getIdentityTime
+  /identity/ping:
+    get:
+      description: Test connectivity
+      responses:
+        '200':
+          description: Test connectivity
+      tags:
+        - identity
+      operationId: getIdentityPing
+  /resource/api_keys:
+    get:
+      description: List all api keys for current account.
+      parameters:
+        - in: query
+          name: page
+          description: Page number (defaults to 1).
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: limit
+          description: 'Number of api keys per page (defaults to 100, maximum is 1000).'
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: List all api keys for current account.
+        '400':
+          description: Require 2FA and totp code
+        '401':
+          description: Invalid bearer token
+      tags:
+        - resource
+      operationId: getResourceApiKeys
+    post:
+      description: Create an api key
+      parameters:
+        - in: formData
+          name: algorithm
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: kid
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: formData
+          name: scope
+          description: comma separated scopes
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: formData
+          name: totp_code
+          description: Code from Google Authenticator
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+      security:
+        - BearerToken: []
+      responses:
+        '201':
+          description: Create an api key
+        '400':
+          description: Required params are empty
+        '401':
+          description: Invalid bearer token
+        '422':
+          description: Validation errors
+      tags:
+        - resource
+      operationId: postResourceApiKeys
+  '/resource/api_keys/kid':
+    delete:
+      description: Delete an api key
+      parameters:
+        - in: path
+          name: kid
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: query
+          name: totp_code
+          description: Code from Google Authenticator
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+      security:
+        - BearerToken: []
+      responses:
+        '204':
+          description: Succefully deleted
+        '400':
+          description: Required params are empty
+        '401':
+          description: Invalid bearer token
+        '404':
+          description: Record is not found
+      tags:
+        - resource
+      operationId: deleteResourceApiKeysKid
+    patch:
+      description: Updates an api key
+      parameters:
+        - in: path
+          name: kid
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: scope
+          description: comma separated scopes
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: formData
+          name: state
+          description: State of API Key. "active" state means key is active and can be used for auth
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: formData
+          name: totp_code
+          description: Code from Google Authenticator
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Updates an api key
+        '400':
+          description: Required params are empty
+        '401':
+          description: Invalid bearer token
+        '404':
+          description: Record is not found
+        '422':
+          description: Validation errors
+      tags:
+        - resource
+      operationId: patchResourceApiKeysKid
+  /resource/otp/verify:
+    post:
+      description: Verify 2FA code
+      parameters:
+        - in: formData
+          name: code
+          description: Code from Google Authenticator
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+      security:
+        - BearerToken: []
+      responses:
+        '201':
+          description: Verify 2FA code
+        '400':
+          description: 2FA has not been enabled for this account or code is missing
+        '401':
+          description: Invalid bearer token
+        '422':
+          description: Validation errors
+      tags:
+        - resource
+      operationId: postResourceOtpVerify
+  /resource/otp/enable:
+    post:
+      description: Enable 2FA
+      parameters:
+        - in: formData
+          name: code
+          description: Code from Google Authenticator
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+      security:
+        - BearerToken: []
+      responses:
+        '201':
+          description: Enable 2FA
+        '400':
+          description: 2FA has been enabled for this account or code is missing
+        '401':
+          description: Invalid bearer token
+        '422':
+          description: Validation errors
+      tags:
+        - resource
+      operationId: postResourceOtpEnable
+  /resource/otp/generate_qrcode:
+    post:
+      description: Generate qr code for 2FA
+      security:
+        - BearerToken: []
+      responses:
+        '201':
+          description: Generate qr code for 2FA
+        '400':
+          description: 2FA has been enabled for this account
+        '401':
+          description: Invalid bearer token
+      tags:
+        - resource
+      operationId: postResourceOtpGenerateQrcode
+  /resource/phones/verify:
+    post:
+      description: Verify a phone
+      parameters:
+        - in: formData
+          name: phone_number
+          description: Phone number with country code
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: verification_code
+          description: Verification code from sms
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+      security:
+        - BearerToken: []
+      responses:
+        '201':
+          description: Verify a phone
+        '400':
+          description: Required params are empty
+        '401':
+          description: Invalid bearer token
+        '404':
+          description: Record is not found
+      tags:
+        - resource
+      operationId: postResourcePhonesVerify
+  /resource/phones/send_code:
+    post:
+      description: Resend activation code
+      parameters:
+        - in: formData
+          name: phone_number
+          description: Phone number with country code
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+      security:
+        - BearerToken: []
+      responses:
+        '201':
+          description: Resend activation code
+        '400':
+          description: Required params are empty
+        '401':
+          description: Invalid bearer token
+        '404':
+          description: Record is not found
+        '422':
+          description: Validation errors
+      tags:
+        - resource
+      operationId: postResourcePhonesSendCode
+  /resource/phones:
+    post:
+      description: Add new phone
+      parameters:
+        - in: formData
+          name: phone_number
+          description: Phone number with country code
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+      security:
+        - BearerToken: []
+      responses:
+        '201':
+          description: Add new phone
+        '400':
+          description: Required params are empty
+        '401':
+          description: Invalid bearer token
+        '404':
+          description: Record is not found
+        '422':
+          description: Validation errors
+      tags:
+        - resource
+      operationId: postResourcePhones
+    get:
+      description: Returns list of user's phones
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Returns list of user's phones
+        '401':
+          description: Invalid bearer token
+      tags:
+        - resource
+      operationId: getResourcePhones
+  /resource/documents:
+    post:
+      description: Upload a new document for current user
+      parameters:
+        - in: formData
+          name: doc_type
+          description: Document type
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: doc_number
+          description: Document number
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: upload
+          description: 'Array of Rack::Multipart::UploadedFile'
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: doc_expire
+          description: Document expiration date
+          schema:
+          $ref: '#/components/schemas/Phone'
+          format: date
+          required: false
+      security:
+        - BearerToken: []
+      responses:
+        '201':
+          description: Document is uploaded
+        '400':
+          description: Required params are empty
+        '401':
+          description: Invalid bearer token
+        '422':
+          description: Validation errors
+      tags:
+        - resource
+      operationId: postResourceDocuments
+    get:
+      description: Return current user documents list
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Return current user documents list
+        '401':
+          description: Invalid bearer token
+      tags:
+        - resource
+      operationId: getResourceDocuments
+  /resource/profiles:
+    post:
+      description: Create a profile for current_user
+      parameters:
+        - in: formData
+          name: first_name
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: last_name
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: dob
+          schema:
+          $ref: '#/components/schemas/Phone'
+          format: date
+          required: true
+        - in: formData
+          name: address
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: postcode
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: city
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: country
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+      security:
+        - BearerToken: []
+      responses:
+        '201':
+          description: Create a profile for current_user
+        '400':
+          description: Required params are empty
+        '401':
+          description: Invalid bearer token
+        '409':
+          description: Profile already exists
+        '422':
+          description: Validation errors
+      tags:
+        - resource
+      operationId: postResourceProfiles
+  /resource/profiles/me:
+    get:
+      description: Return profile of current resource owner
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Return profile of current resource owner
+        '401':
+          description: Invalid bearer token
+        '404':
+          description: User has no profile
+      tags:
+        - resource
+      operationId: getResourceProfilesMe
+  '/resource/labels/key':
+    delete:
+      description: Delete a label  with 'public' scope.
+      parameters:
+        - in: path
+          name: key
+          description: Label key.
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+      security:
+        - BearerToken: []
+      responses:
+        '204':
+          description: Succefully deleted
+        '400':
+          description: Required params are empty
+        '401':
+          description: Invalid bearer token
+        '404':
+          description: Record is not found
+      tags:
+        - resource
+      operationId: deleteResourceLabelsKey
+    patch:
+      description: Update a label with 'public' scope.
+      parameters:
+        - in: path
+          name: key
+          description: Label key.
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: value
+          description: Label value.
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Update a label with 'public' scope.
+        '400':
+          description: Required params are empty
+        '401':
+          description: Invalid bearer token
+        '404':
+          description: Record is not found
+        '422':
+          description: Validation errors
+      tags:
+        - resource
+      operationId: patchResourceLabelsKey
+    get:
+      description: Return a label by key.
+      parameters:
+        - in: path
+          name: key
+          description: Label key.
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Return a label by key.
+        '400':
+          description: Required params are empty
+        '401':
+          description: Invalid bearer token
+        '404':
+          description: Record is not found
+      tags:
+        - resource
+      operationId: getResourceLabelsKey
+  /resource/labels:
+    post:
+      description: Create a label with 'public' scope.
+      parameters:
+        - in: formData
+          name: key
+          description: Label key.
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: value
+          description: Label value.
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+      security:
+        - BearerToken: []
+      responses:
+        '201':
+          description: Create a label with 'public' scope.
+        '400':
+          description: Required params are empty
+        '401':
+          description: Invalid bearer token
+        '422':
+          description: Validation errors
+      tags:
+        - resource
+      operationId: postResourceLabels
+    get:
+      description: List all labels for current user.
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: List all labels for current user.
+        '401':
+          description: Invalid bearer token
+      tags:
+        - resource
+      operationId: getResourceLabels
+  /resource/users/password:
+    put:
+      description: Sets new account password
+      parameters:
+        - in: formData
+          name: old_password
+          description: Previous account password
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: new_password
+          description: User password
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: confirm_password
+          description: User password
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: formData
+          name: lang
+          description: Language in iso-2 format
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+      responses:
+        '201':
+          description: Changes password
+        '400':
+          description: Required params are empty
+        '404':
+          description: Record is not found
+        '422':
+          description: Validation errors
+      tags:
+        - resource
+      operationId: putResourceUsersPassword
+  /resource/users/activity/topic:
+    get:
+      description: Returns user activity
+      parameters:
+        - in: query
+          name: page
+          description: Page number (defaults to 1).
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: query
+          name: limit
+          description: 'Number of activity per page (defaults to 100, maximum is 1000).'
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+        - in: path
+          name: topic
+          description: 'Topic of user activity. Allowed: [all, password, session, otp]'
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+      responses:
+        '200':
+          description: Returns user activity
+      tags:
+        - resource
+      operationId: getResourceUsersActivityTopic
+  /resource/users/me:
+    delete:
+      description: Returns current user
+      parameters:
+        - in: query
+          name: password
+          description: Account password
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: true
+        - in: query
+          name: otp_code
+          description: Code from Google Authenticator
+          schema:
+          $ref: '#/components/schemas/Phone'
+          required: false
+      responses:
+        '204':
+          description: Returns current user
+      tags:
+        - resource
+      operationId: deleteResourceUsersMe
+    get:
+      description: Returns current user
+      responses:
+        '200':
+          description: Returns current user
+      tags:
+        - resource
+      operationId: getResourceUsersMe
